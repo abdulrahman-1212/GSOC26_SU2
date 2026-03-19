@@ -241,28 +241,19 @@ Due to the use of **RANS modeling**, small-scale turbulent structures are not di
 
 ---
 
-## 7. Visualization
+## 7. Results
 
-The results can be visualized in **ParaView** by loading:
+#### Velocity Field
+![Velocity Field](images/velocity.png)
 
-```
-flow.vtu
-```
+#### Temperature Distribution
+![Temperature Field](images/temperature.png)
 
-Recommended visualization techniques:
+#### Momentum Field
+![Momentum Field](images/momentum.png)
 
-* Velocity magnitude contours
-* Streamlines of the jet
-* Turbulent viscosity fields
-* Axial velocity profiles
-
-These plots allow observation of:
-
-* Jet core structure
-* Turbulent mixing region
-* Flow spreading angle
-
----
+#### Energy Field
+![Energy Field](images/energy.png)
 
 ## 8. Conclusion
 
