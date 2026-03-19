@@ -1,0 +1,6 @@
+[submodule "demo/externals/CoDiPack"]
+	path = demo/externals/CoDiPack
+	url = https://github.com/su2code/CoDiPack
+[submodule "demo/externals/MLPCpp"]
+	path = demo/externals/MLPCpp
+	url = https://github.com/EvertBunschoten/MLPCpp
