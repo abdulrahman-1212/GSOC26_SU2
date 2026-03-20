@@ -1,256 +1,149 @@
-# Heated Flat Plate Simulation (CHT) using SU2
+# Assignment 3 — Unsteady CHT Flat Plate via Python Wrapper
 
-## 1. Introduction
-
-This project simulates the airflow over a **heated flat plate** using the open-source CFD solver **SU2**. The simulation is designed for **conjugate heat transfer (CHT) related studies**, where heat exchange between a solid surface and a fluid flow is important.
-
-Flat plate boundary-layer problems are classical benchmarks in computational fluid dynamics because they allow investigation of:
-
-* Boundary layer development
-* Turbulent heat transfer
-* Wall shear stress and drag
-* Thermal diffusion from heated surfaces
-
-The numerical simulation solves the **Reynolds-Averaged Navier–Stokes (RANS)** equations with the **SST turbulence model**, which is widely used for wall-bounded turbulent flows.
-
-Visualization of the results is performed using **ParaView**.
+**GSoC 2026 | SU2 Physics-Informed Machine Learning**
+**Author:** Abdulrahman Mahmoud | Cairo University
+**SU2 Version:** 8.4.0 "Harrier"
+**Reference test case:** [`TestCases/py_wrapper/flatPlate_unsteady_CHT`](https://github.com/su2code/SU2/blob/master/TestCases/py_wrapper/flatPlate_unsteady_CHT/launch_unsteady_CHT_FlatPlate.py)
 
 ---
 
-# 2. Problem Description
+## Overview
 
-The physical problem consists of airflow over a **flat plate with a constant temperature wall boundary condition**.
-
-The flow domain includes:
-
-* A **heated flat plate**
-* A **farfield boundary**
-* Turbulent boundary layer development along the plate
-
-The plate surface temperature is fixed, allowing analysis of heat transfer from the wall into the fluid.
+This assignment demonstrates the SU2 Python wrapper (`pysu2`) by running an **unsteady Conjugate Heat Transfer (CHT)** simulation over a 2D rounded flat plate at low Mach and low Reynolds numbers. The key feature is a **time-varying sinusoidal wall temperature** imposed programmatically at each time step through the wrapper, without modifying the SU2 source code. This exercises the core Python wrapper workflow: preprocessing, custom BC injection, solver execution, and output — all orchestrated from Python.
 
 ---
 
-# 3. Numerical Model
+## Test Case Description
 
-## 3.1 Governing Equations
+The problem models compressible viscous flow over a 2D rounded flat plate with a time-varying isothermal wall condition. The fluid is standard air modelled with the SST turbulence closure and Sutherland viscosity law. The simulation uses dual-time stepping to march the unsteady solution forward.
 
-The simulation solves the **compressible RANS equations** including turbulence modeling using:
+### Flow Conditions
 
-**SST (Shear Stress Transport) turbulence model**
+| Parameter | Value |
+|---|---|
+| Solver | RANS + SST |
+| Mach Number | 0.03059 |
+| Freestream Velocity | ~10.5 m/s |
+| Freestream Pressure | 101,325 Pa |
+| Freestream Temperature | 293.15 K |
+| Reynolds Number | 24,407 (Re length = 0.035 m) |
+| Time Marching | Dual-time, 2nd order |
+| Time Step | 0.003 s |
+| Time Iterations | 10 |
+| Inner Iterations (per step) | 10 |
+| Mesh | `2D_Rounded_FlatPlate.su2` |
 
-This model combines:
+### Wall Temperature Boundary Condition
 
-* (k-\omega) behavior near the wall
-* (k-\epsilon) behavior in the outer region
+The wall temperature is prescribed at each time step by the Python wrapper as a homogeneous sinusoidal function of time:
 
-It is well suited for **boundary layer and heat transfer problems**.
+$$T_{wall}(t) = 293 + 57 \cdot \sin(2\pi t)$$
 
----
-
-# 4. Flow Conditions
-
-The free-stream conditions used in the simulation are:
-
-| Parameter              | Value     |
-| ---------------------- | --------- |
-| Mach number            | 0.03059   |
-| Freestream pressure    | 101325 Pa |
-| Freestream temperature | 293.15 K  |
-| Reynolds number        | 24,407    |
-| Reynolds length        | 0.035 m   |
-
-The flow is therefore **low-speed and nearly incompressible**.
-
-Additional fluid properties:
-
-| Property     | Value            |
-| ------------ | ---------------- |
-| Density      | 1.204 kg/m³      |
-| Viscosity    | 1.82 × 10⁻⁵ Pa·s |
-| Gas constant | 287.058 J/(kg·K) |
-| Gamma        | 1.4              |
+This gives a temperature oscillation between **236 K and 350 K** over one cycle (period = 1 s). At the early time steps captured here (small $t$), the sine term is near zero, so the wall is close to the freestream temperature of 293 K — explaining the very narrow temperature variation visible in the results.
 
 ---
 
-# 5. Boundary Conditions
+## Python Wrapper Workflow
 
-The simulation domain uses the following boundary definitions:
-
-| Boundary | Type              | Description                       |
-| -------- | ----------------- | --------------------------------- |
-| plate    | Isothermal wall   | Constant wall temperature (293 K) |
-| farfield | Farfield boundary | Free-stream flow                  |
-
-The wall temperature remains constant during the simulation, allowing analysis of **heat transfer and thermal boundary layer growth**.
-
----
-
-# 6. Time Integration
-
-The simulation is **time dependent** and uses a **dual-time stepping scheme**.
-
-| Parameter             | Value                          |
-| --------------------- | ------------------------------ |
-| Time marching method  | Dual time stepping (2nd order) |
-| Time step             | 0.003 s                        |
-| Total time iterations | 10                             |
-| Inner iterations      | 10                             |
-
-This approach allows simulation of **transient behavior in the boundary layer flow**.
-
----
-
-# 7. Numerical Methods
-
-The numerical schemes used in the simulation include:
-
-| Method                  | Scheme                 |
-| ----------------------- | ---------------------- |
-| Gradient reconstruction | Weighted least squares |
-| Flow convection scheme  | JST scheme             |
-| Turbulence convection   | Scalar upwind          |
-| Time discretization     | Implicit Euler         |
-| Linear solver           | FGMRES                 |
-| Preconditioner          | ILU                    |
-
-Multigrid acceleration is also enabled to improve convergence performance.
-
----
-
-# 8. Mesh
-
-The simulation uses the mesh file:
+The wrapper (`launch_unsteady_CHT_FlatPlate.py`) follows this sequence at each time step:
 
 ```
-2D_FlatPlate_Rounded.su2
+Preprocess(TimeIter)
+  ↓
+SetMarkerCustomTemperature(...)   ← inject sinusoidal T_wall for all plate vertices
+  ↓
+BoundaryConditionsUpdate()        ← push BCs into the solver
+  ↓
+Run()                             ← dual-time inner iterations
+  ↓
+Postprocess() → Update() → Monitor() → Output()
 ```
 
-The mesh represents a **2D domain around the flat plate**, allowing resolution of the boundary layer developing along the wall.
+Key wrapper calls used:
+
+| Call | Purpose |
+|---|---|
+| `CSinglezoneDriver(cfg, nZone, comm)` | Initialize solver and preprocessing |
+| `GetCHTMarkerTags()` | Discover markers with CHT capability |
+| `GetMarkerIndices()` | Map marker names to IDs on this MPI rank |
+| `GetNumberMarkerNodes(id)` | Count vertices on the plate marker |
+| `GetUnsteadyTimeStep()` | Retrieve Δt from the config |
+| `SetMarkerCustomTemperature(id, iVert, T)` | Set per-vertex wall temperature |
+| `BoundaryConditionsUpdate()` | Apply updated BCs before solver run |
 
 ---
 
-# 9. Convergence History
-
-The solver was executed for:
+## Repository Structure
 
 ```
-TIME_ITER = 10
-```
-
-Example convergence output from the final iteration:
-
-| Inner Iter | rms[Rho] | rms[k] | rms[w] | CL       | CD      |
-| ---------- | -------- | ------ | ------ | -------- | ------- |
-| 0          | -7.05    | -2.06  | 1.82   | -0.00223 | 0.13898 |
-| 5          | -7.10    | -2.34  | 1.58   | -0.00221 | 0.13618 |
-| 9          | -7.14    | -2.53  | 1.45   | -0.00199 | 0.13407 |
-
-### Observations
-
-* Density residual converges to approximately **10⁻⁷**.
-* Turbulence residuals gradually decrease.
-* Drag coefficient stabilizes near **0.134**.
-
-The solver terminated because the **maximum time iterations were reached**:
-
-```
-Maximum number of time iterations reached (TIME_ITER = 10)
+Assignment3/
+├── flatplate_unsteady_CHT.cfg          # SU2 configuration file
+├── launch_unsteady_CHT_FlatPlate.py    # Python wrapper (unsteady CHT driver)
+├── 2D_Rounded_FlatPlate.su2            # Mesh file
+├── outputs/
+│   ├── flow_*.vtu                      # Volume output per time step
+│   └── history.csv                     # Convergence history
+└── images/
+    ├── velocity.png                    # Velocity magnitude field
+    └── temperature.png                 # Temperature field
 ```
 
 ---
 
-# 10. Simulation Output Files
+## How to Run
 
-At the end of the simulation, SU2 generated several output files.
+### Prerequisites
 
-### Restart files
+- SU2 v8.4.0 with Python bindings (`pysu2`)
+- `mpi4py` (for parallel runs)
 
-```
-restart_flow_00008.dat
-restart_flow_00009.dat
-```
+### Serial
 
-These files store the **flow solution state** and can be used to restart the simulation.
-
-### Visualization files
-
-```
-flow_00009.vtu
-surface_flow_00009.vtu
+```bash
+python3 launch_unsteady_CHT_FlatPlate.py -f flatplate_unsteady_CHT.cfg
 ```
 
-These files contain the full flow field and surface data for visualization.
+### Parallel (MPI)
+
+```bash
+mpirun -n 4 python3 launch_unsteady_CHT_FlatPlate.py -f flatplate_unsteady_CHT.cfg --parallel
+```
 
 ---
 
-# 11. Visualization
+## Results
 
-The results can be visualized using **ParaView**.
+### Velocity Field
 
-Steps:
+![Velocity Field](images/velocity.png)
 
-1. Open ParaView
-2. Load:
+The freestream velocity is ~10.5 m/s (orange), consistent with Mach 0.03059 at 293.15 K (speed of sound ≈ 343 m/s). Stagnation points are visible at both the **leading and trailing edges** of the rounded plate geometry (bright white, near-zero velocity), reflecting the symmetric blunt body shape. The no-slip boundary layer along the plate surface is thin but resolved — at Re ≈ 24,400 with a chord of 0.035 m the boundary layer is laminar in character. The flow field is largely undisturbed at this early time step, with no separation or wake instability, as expected for a well-resolved low-Re case.
 
-```
-flow_00009.vtu
-```
+### Temperature Field
 
-Recommended visualization plots:
+![Temperature Field](images/temperature.png)
 
-* Velocity magnitude contours
-* Temperature distribution
-* Boundary layer velocity profiles
-* Surface pressure distribution
-* Streamlines near the plate
-
-These plots help analyze **boundary layer development and heat transfer behavior**.
+The temperature field range is extremely narrow (~292.9–290.1 K), because these results correspond to the **first few time steps** where $t \approx 0$ and $\sin(2\pi t) \approx 0$, placing $T_{wall}$ close to the freestream value of 293.15 K. The faint warm halo visible around the plate perimeter confirms that the sinusoidal BC is active and being injected correctly by the wrapper — the wall is marginally warmer than the ambient at this phase of the oscillation. As the simulation advances through the full 10-second cycle, the temperature contrast will grow to ±57 K (ranging from 236 K to 350 K), producing a clearly visible oscillating thermal boundary layer. The slight cool spot at the trailing edge tip reflects local adiabatic expansion around the blunt geometry.
 
 ---
 
-# 12. Key Results
+## Key Differences from Assignment 4
 
-From the solver output:
-
-| Parameter              | Value |
-| ---------------------- | ----- |
-| Final Drag Coefficient | 0.134 |
-| Lift Coefficient       | ≈ 0   |
-| Density Residual       | ~10⁻⁷ |
-
-The near-zero lift coefficient is expected because the **flat plate is aligned with the incoming flow**.
-
----
-
-# 13. Conclusion
-
-This project simulated **flow over a heated flat plate** using **SU2** with the SST turbulence model.
-
-Key findings:
-
-* The simulation successfully captured turbulent boundary layer development.
-* Drag coefficient converged to approximately **0.134**.
-* Residuals decreased steadily during the iterations.
-* Visualization files were generated for post-processing.
-
-This case demonstrates the use of SU2 for **heat transfer and wall-bounded turbulent flow simulations**, which are relevant in many engineering applications such as cooling systems, heat exchangers, and aerodynamic heating problems.
+| Feature | Assignment 3 (this) | Assignment 4 |
+|---|---|---|
+| Solver | RANS SST | RANS SA |
+| Time regime | Unsteady (dual-time) | Steady |
+| Wall BC type | Homogeneous sinusoidal in time | Spatially varying linear ramp |
+| Re | ~24,400 (low-speed CHT) | 5×10⁶ (high-speed turbulent) |
+| Mach | 0.031 | 0.2 |
+| Wrapper role | Per-step time update | Pre-run spatial setup |
+| Turbulence | SST (k-ω) | Spalart-Allmaras |
 
 ---
 
-# 14. Files in this Project
+## Notes
 
-| File                       | Description               |
-| -------------------------- | ------------------------- |
-| `cht_flatplate.cfg`        | SU2 configuration file    |
-| `2D_FlatPlate_Rounded.su2` | Computational mesh        |
-| `restart_flow_00009.dat`   | Restart solution          |
-| `flow_00009.vtu`           | Volume flow visualization |
-| `surface_flow_00009.vtu`   | Surface visualization     |
-
----
-
-# 15. Author
-
-Simulation performed using **SU2**
-Visualization performed using **ParaView**
+- `MARKER_PYTHON_CUSTOM = (plate)` in the config exposes the marker to the wrapper. Without this, `GetCHTMarkerTags()` would not return the plate.
+- `MARKER_ISOTHERMAL = (plate, 293)` provides the fallback BC. It is **overridden every time step** by `SetMarkerCustomTemperature()` before `BoundaryConditionsUpdate()` is called.
+- The `TIME_ITER= 10` setting runs only 10 time steps. Extending to `MAX_TIME= 1.0` with a smaller `TIME_STEP` would capture a full oscillation period and show the full ±57 K thermal cycle.
+- `OUTPUT_WRT_FREQ= 3` writes volume output at iterations 0, 3, 6, 9 — providing 4 snapshots of the evolving temperature field.
