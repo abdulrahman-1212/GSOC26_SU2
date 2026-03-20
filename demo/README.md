@@ -215,6 +215,14 @@ cfg.adam.beta2  = 0.999;  // Adam 2nd-moment decay
 
 ---
 
+## results + terminal outputs
+
+![Setup and Model Arch](images/setup.png)
+
+![Training](images/training.png)
+
+
+
 ## Known compiler notes
 
 - GCC rejects `= {}` as a default argument for structs that use in-class member
