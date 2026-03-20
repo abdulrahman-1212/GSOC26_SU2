@@ -136,6 +136,12 @@ The `Sound_Speed` field is available in ParaView after loading `flow.vtu`. The j
 
 ---
 
+**ParaView volume visualization of `velocity` field:**
+
+![Sound_Speed field in ParaView](images/velocity.png)
+
+---
+
 ## Physical Interpretation
 
 The speed of sound `c = √(γRT)` decreases with temperature. In the turbulent jet:
