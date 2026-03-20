@@ -94,10 +94,7 @@ mpirun -n 4 python3 run_simulation.py
 
 ### Output
 
-The solver writes volume output to `outputs/flow.vtu` every 500 iterations. Open in ParaView:
-
-- **Windows (WSL users):** navigate to `\\wsl$\Ubuntu\root\GSoC26\Assignment4\outputs\` in ParaView's file dialog.
-- **Linux:** `paraview outputs/flow.vtu`
+The solver writes volume output to `outputs/flow.vtu` every 500 iterations. 
 
 ---
 
@@ -107,13 +104,13 @@ The solver writes volume output to `outputs/flow.vtu` every 500 iterations. Open
 
 ![Velocity Field](images/velocity.png)
 
-The boundary layer grows along the plate in the streamwise direction. The no-slip condition at the wall is clearly captured, with a smooth velocity gradient from zero at the wall to the freestream value. The Spalart-Allmaras model accurately resolves the turbulent boundary layer thickness evolution downstream.
+The freestream velocity is ~68.6 m/s (orange), consistent with Mach 0.2 at 293.15 K (speed of sound ≈ 343 m/s). A clear stagnation point is visible at the leading edge where local velocity peaks near 100 m/s due to flow acceleration around the blunt leading geometry. The no-slip boundary condition is enforced along the entire plate surface (dark blue, zero velocity). The turbulent boundary layer is very thin relative to the domain size, as expected at Re = 5×10⁶. A clean, symmetric wake develops behind the trailing edge with no separation — physically correct for a zero-incidence flat plate.
 
 ### Temperature Field
 
 ![Temperature Field](images/temperature.png)
 
-The thermal boundary layer closely follows the velocity boundary layer structure. The spatially varying wall temperature produces a progressively hotter near-wall region toward the trailing edge, consistent with the imposed linear ramp from 300 K to 500 K. Heat diffuses outward from the wall into the freestream, with the thermal layer thickening downstream as expected for a heated flat plate under forced convection.
+The freestream temperature is 293.15 K (dark blue). A thin thermal boundary layer develops along the plate surface, with the heated wall visible as a warm orange/yellow band. The temperature plume convects downstream from the trailing edge, consistent with forced convection over a heated surface. The colormap is autoscaled by ParaView to the near-wall range (~293–300 K); rescaling to 293–500 K in ParaView will reveal the full spatial temperature gradient imposed by the linear ramp BC. The thermal boundary layer thickness is comparable to the velocity boundary layer, consistent with a turbulent Prandtl number of 0.90.
 
 ---
 
